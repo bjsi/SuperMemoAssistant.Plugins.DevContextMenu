@@ -78,12 +78,7 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
     public DevContextMenuSvc _service { get; set; }
 
     // Context Menu map from name to action
-    public Dictionary<string, ActionProxy> CmdNameActionMap = new Dictionary<string, ActionProxy> 
-    {
-      { "Hello World", new ActionProxy(() => Trace.WriteLine("Hello World")) },
-      { "Hi My friend", new ActionProxy(() => Trace.WriteLine("Hi My Friend")) },
-      { "Goodbye world", new ActionProxy(() => Trace.WriteLine("goodbye world")) },
-    };
+    public Dictionary<string, ActionProxy> PluginCmdActionMap = new Dictionary<string, ActionProxy>();
 
     // Turned into HR in Context Menu
     private const string MENU_SEPARATOR = "";
@@ -94,7 +89,6 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
     public HtmlEvent ContextItemMouseout = new HtmlEvent();
 
     #endregion
-
 
     #region Methods Impl
 
@@ -109,16 +103,13 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
 
     }
 
-    public bool AddMenuItem(string name, ActionProxy callback)
+    public bool AddMenuItem(string pluginName, string cmd, ActionProxy callback)
     {
 
-      if (name.IsNullOrEmpty())
+      if (pluginName.IsNullOrEmpty() || cmd.IsNullOrEmpty())
         return false;
 
-      if (CmdNameActionMap.ContainsKey(name))
-        return false;
-
-      CmdNameActionMap[name] = callback;
+      PluginCmdActionMap[cmd] = callback;
       return true;
 
     }
@@ -143,7 +134,7 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       if (eventObj.IsNull())
         return;
 
-      if (!CmdNameActionMap.Any())
+      if (!PluginCmdActionMap.Any())
         return;
 
       bool shiftPressed = eventObj.shiftKey;
@@ -164,7 +155,7 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       int y = e.clientY;
 
       var htmlDoc = ContentUtils.GetFocusedHtmlDocument();
-      Application.Current.Dispatcher.Invoke(() =>
+      Application.Current.Dispatcher.BeginInvoke((Action)(() =>
       {
 
         // Create popup
@@ -174,17 +165,16 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
 
         ApplyPopupBodyStyling(popupBody);
 
-        foreach (var cmd in CmdNameActionMap.Keys)
+        foreach (var cmd in PluginCmdActionMap.Keys)
         {
           AddContextItem(popup, cmd);
         }
 
-        var popupHeight = (CmdNameActionMap.Count * 17) + 5;
+        var popupHeight = (PluginCmdActionMap.Count * 17) + 5;
         ContextItemClicked.OnEvent += (sender, args) => popup.Hide();
         popup.Show(x + 2, y + 2, 150, popupHeight, htmlDoc.body);
 
-
-      });
+      }));
 
     }
 
@@ -235,7 +225,7 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
 
       // Get innerText and find Action
       string cmd = contextItem.innerText;
-      if (!cmd.IsNullOrEmpty() && CmdNameActionMap.TryGetValue(cmd, out var action))
+      if (!cmd.IsNullOrEmpty() && PluginCmdActionMap.TryGetValue(cmd, out var action))
       {
         action.Invoke();
       }
@@ -245,14 +235,15 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
     private void ContextItemMouseout_OnEvent(object sender, IControlHtmlEventArgs e)
     {
       var src = e.EventObj.srcElement;
-      src.style.color = "HighlightText";
+      src.style.backgroundColor = "grey";
+      src.style.color = "white";
     }
 
     private void ContextItemMouseover_OnEvent(object sender, IControlHtmlEventArgs e)
     {
       var src = e.EventObj.srcElement;
-      src.style.backgroundColor = "";
-      src.style.color = "";
+      src.style.backgroundColor = "white";
+      src.style.color = "black";
     }
 
     private void ApplyContextItemStyling(IHTMLElement el, string text)
@@ -265,7 +256,7 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       {
         el.innerHTML = "<hr>";
         el.style.padding = "2px";
-        el.style.margin = "0px";
+        el.style.margin = "1px";
         el.style.height = "17px";
         el.style.overflow = "hidden";
       }
@@ -274,18 +265,14 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
         el.innerHTML = text;
         el.style.margin = "0px 1px";
         el.style.padding = "2px 20px";
+        el.style.fontSize = "10px";
       }
 
     }
 
     private void ApplyPopupBodyStyling(IHTMLElement body)
     {
-
-      body.style.backgroundColor = "threedface";
-      body.style.border = "outset 2px";
-      body.style.fontFamily = "Tahoma";
-      body.style.fontSize = "11px";
-
+      body.style.border = "solid black 1px";
     }
 
     #endregion

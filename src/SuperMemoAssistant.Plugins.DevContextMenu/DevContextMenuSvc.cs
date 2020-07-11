@@ -12,13 +12,13 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
 {
   public class DevContextMenuSvc : PerpetualMarshalByRefObject, IDevContextMenu
   {
-    public bool AddMenuItem(string name, ActionProxy callback)
+    public bool AddMenuItem(string pluginName, string cmd, ActionProxy callback)
     {
 
-      if (name.IsNullOrEmpty())
+      if (pluginName.IsNullOrEmpty() || cmd.IsNullOrEmpty())
         return false;
 
-      return Svc<DevContextMenuPlugin>.Plugin.AddMenuItem(name, callback);
+      return Svc<DevContextMenuPlugin>.Plugin.AddMenuItem(pluginName, cmd, callback);
 
     }
   }

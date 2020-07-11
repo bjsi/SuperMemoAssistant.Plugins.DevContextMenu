@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace SuperMemoAssistant.Plugins.DevContextMenu
 {
-  class ContentUtils
+  public static class ContentUtils
   {
     /// <summary>
     /// Get the IHTMLDocument2 object representing the focused html control of the current element.
@@ -24,7 +24,6 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       return htmlCtrl?.GetDocument();
 
     }
-
 
     /// <summary>
     /// Get the IHTMLWindow2 object for the currently focused HtmlControl
