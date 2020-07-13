@@ -88,6 +88,8 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
     public HtmlEvent ContextItemMouseover = new HtmlEvent();
     public HtmlEvent ContextItemMouseout = new HtmlEvent();
 
+    private IHTMLPopup CurrentPopup { get; set; }
+
     #endregion
 
     #region Methods Impl
@@ -123,11 +125,11 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       };
 
       events = new HTMLControlEvents(options);
-      events.OnMouseDownEvent += Events_OnMouseDownEvent;
+      events.OnMouseDownEvent += OnMouseDown;
 
     }
 
-    private void Events_OnMouseDownEvent(object sender, IHTMLControlEventArgs e)
+    private void OnMouseDown(object sender, IHTMLControlEventArgs e)
     {
 
       var eventObj = e?.EventObj;
@@ -137,14 +139,14 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       if (!PluginCmdActionMap.Any())
         return;
 
-      bool shiftPressed = eventObj.shiftKey;
-      bool ctrlPressed = eventObj.ctrlKey;
-      bool leftmb = eventObj.button == 1;
-      if (!ctrlPressed || !shiftPressed || !leftmb)
+      bool ctrl = eventObj.ctrlKey;
+      bool lmb = eventObj.button == 1;
+
+      if (!ctrl || !lmb)
         return;
 
-      eventObj.returnValue = false;
       OpenContextMenu(eventObj);
+      eventObj.returnValue = false;
 
     }
 
@@ -155,24 +157,31 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       int y = e.clientY;
 
       var htmlDoc = ContentUtils.GetFocusedHtmlDocument();
+
+      // Clear old events
+      ContextItemClicked = new HtmlEvent();
+      ContextItemMouseout = new HtmlEvent();
+      ContextItemMouseover = new HtmlEvent();
+
       Application.Current.Dispatcher.BeginInvoke((Action)(() =>
       {
-
-        // Create popup
         var window = htmlDoc.parentWindow;
-        var popup = ((IHTMLWindow4)window).createPopup() as IHTMLPopup;
-        var popupBody = ((IHTMLDocument2)popup.document).body;
+
+        CurrentPopup = ((IHTMLWindow4)window).createPopup() as IHTMLPopup;
+
+        var popupDoc = ((IHTMLDocument2)CurrentPopup.document);
+        var popupBody = popupDoc.body;
+        popupBody.innerHTML = "";
 
         ApplyPopupBodyStyling(popupBody);
 
         foreach (var cmd in PluginCmdActionMap.Keys)
         {
-          AddContextItem(popup, cmd);
+          AddContextItem(CurrentPopup, cmd);
         }
 
         var popupHeight = (PluginCmdActionMap.Count * 17) + 5;
-        ContextItemClicked.OnEvent += (sender, args) => popup.Hide();
-        popup.Show(x + 2, y + 2, 150, popupHeight, htmlDoc.body);
+        CurrentPopup.Show(x + 2, y + 2, 150, popupHeight, htmlDoc.body);
 
       }));
 
@@ -201,15 +210,15 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
     {
       var element = el as IHTMLElement2;
 
-      // On Context Item Mouseover
+      element.UnsubscribeFrom(EventType.onmouseover, ContextItemMouseover);
       element.SubscribeTo(EventType.onmouseover, ContextItemMouseover);
       ContextItemMouseover.OnEvent += ContextItemMouseover_OnEvent;
 
-      // On Context Item Mouseout
+      element.UnsubscribeFrom(EventType.onmouseout, ContextItemMouseout);
       element.SubscribeTo(EventType.onmouseout, ContextItemMouseout);
       ContextItemMouseout.OnEvent += ContextItemMouseout_OnEvent;
 
-      // On Context Item Click
+      element.UnsubscribeFrom(EventType.onclick, ContextItemClicked);
       element.SubscribeTo(EventType.onclick, ContextItemClicked);
       ContextItemClicked.OnEvent += ContextItemClicked_OnEvent;
       
@@ -223,35 +232,34 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
       if (contextItem.IsNull())
         return;
 
+      CurrentPopup?.Hide();
+
       // Get innerText and find Action
       string cmd = contextItem.innerText;
+
       if (!cmd.IsNullOrEmpty() && PluginCmdActionMap.TryGetValue(cmd, out var action))
-      {
         action.Invoke();
-      }
 
     }
 
     private void ContextItemMouseout_OnEvent(object sender, IControlHtmlEventArgs e)
     {
       var src = e.EventObj.srcElement;
-      src.style.backgroundColor = "grey";
-      src.style.color = "white";
+      src.style.backgroundColor = "white";
     }
 
     private void ContextItemMouseover_OnEvent(object sender, IControlHtmlEventArgs e)
     {
       var src = e.EventObj.srcElement;
-      src.style.backgroundColor = "white";
+      src.style.backgroundColor = "lightblue";
       src.style.color = "black";
     }
 
     private void ApplyContextItemStyling(IHTMLElement el, string text)
     {
 
-      el.style.cursor = "default";
       el.style.width = "100%";
-      el.style.textAlign = "center";
+      el.style.textAlign = "left";
       if (text.IsNullOrEmpty())
       {
         el.innerHTML = "<hr>";
@@ -265,7 +273,6 @@ namespace SuperMemoAssistant.Plugins.DevContextMenu
         el.innerHTML = text;
         el.style.margin = "0px 1px";
         el.style.padding = "2px 20px";
-        el.style.fontSize = "10px";
       }
 
     }
